@@ -1,0 +1,24 @@
+{
+    "dataset": "mnist",
+    "epochs": 2,
+    "batch_size": 64,
+    "learning_rate": 0.001,
+    "optimizer": "sgd",
+    "weight_decay": 0.0,
+    "num_layers": 3,
+    "hidden_layers": 3,
+    "hidden_size": [
+        128,
+        128,
+        128
+    ],
+    "num_neurons": 128,
+    "activation": "tanh",
+    "loss": "cross_entropy",
+    "weight_init": "xavier",
+    "input_size": 784,
+    "output_size": 10,
+    "val_f1": 0.767738212224264,
+    "test_accuracy": 0.7904,
+    "test_f1": 0.7780483331942392
+}

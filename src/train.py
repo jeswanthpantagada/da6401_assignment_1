@@ -16,8 +16,8 @@ except ImportError:
     from ann.neural_network import NeuralNetwork
     from utils.data_loader import preprocess_split
 
-DEFAULT_MODEL_PATH = os.path.join("src", "best_model.npy")
-DEFAULT_CONFIG_PATH = os.path.join("src", "best_config.json")
+DEFAULT_MODEL_PATH = os.path.join("outputs", "last_train_model.npy")
+DEFAULT_CONFIG_PATH = os.path.join("outputs", "last_train_config.json")
 
 
 def parse_arguments(argv=None):
@@ -74,10 +74,10 @@ def save_model(model, model_path, config_path, config):
     with open(config_path, "w", encoding="utf-8") as file:
         json.dump(config, file, indent=4)
 
-    # Keep the canonical root artifacts too, since some checks use repo-root paths.
-    if os.path.normpath(model_path) != "best_model.npy":
+    # If the user explicitly updates the submission artifact under src/, mirror it at repo root too.
+    if os.path.normpath(model_path) == os.path.normpath(os.path.join("src", "best_model.npy")):
         np.save("best_model.npy", model.get_weights(), allow_pickle=True)
-    if os.path.normpath(config_path) != "best_config.json":
+    if os.path.normpath(config_path) == os.path.normpath(os.path.join("src", "best_config.json")):
         with open("best_config.json", "w", encoding="utf-8") as file:
             json.dump(config, file, indent=4)
 
@@ -90,7 +90,7 @@ def main(argv=None):
     model = NeuralNetwork(args)
 
     best_state = model.get_weights()
-    best_val_f1 = -np.inf
+    best_epoch_loss = np.inf
 
     for epoch in range(args.epochs):
         permutation = np.random.permutation(X_train.shape[0])
@@ -109,24 +109,18 @@ def main(argv=None):
             model.update_weights()
             batch_losses.append(loss)
 
-        train_metrics = model.evaluate(X_train, y_train)
-        val_metrics = model.evaluate(X_val, y_val)
-        val_f1 = f1_score(y_val, val_metrics["predictions"], average="macro")
-
-        if val_f1 > best_val_f1:
-            best_val_f1 = val_f1
+        epoch_loss = float(np.mean(batch_losses))
+        if epoch_loss < best_epoch_loss:
+            best_epoch_loss = epoch_loss
             best_state = model.get_weights()
 
-        print(
-            f"Epoch {epoch + 1}/{args.epochs} "
-            f"loss={np.mean(batch_losses):.6f} "
-            f"train_acc={train_metrics['accuracy']:.4f} "
-            f"val_acc={val_metrics['accuracy']:.4f} "
-            f"val_f1={val_f1:.4f}"
-        )
+        print(f"Epoch {epoch + 1}/{args.epochs} loss={epoch_loss:.6f}")
 
     model.set_weights(best_state)
-    test_metrics = model.evaluate(X_test, y_test)
+    eval_batch_size = max(1024, args.batch_size)
+    val_metrics = model.evaluate(X_val, y_val, batch_size=eval_batch_size)
+    test_metrics = model.evaluate(X_test, y_test, batch_size=eval_batch_size)
+    val_f1 = f1_score(y_val, val_metrics["predictions"], average="macro")
     test_f1 = f1_score(y_test, test_metrics["predictions"], average="macro")
 
     config = {
@@ -145,13 +139,13 @@ def main(argv=None):
         "weight_init": args.weight_init,
         "input_size": 784,
         "output_size": 10,
-        "val_f1": best_val_f1,
+        "val_f1": val_f1,
         "test_accuracy": test_metrics["accuracy"],
         "test_f1": test_f1,
     }
 
     save_model(model, args.model_save_path, args.config_save_path, config)
-    print(f"Best validation F1: {best_val_f1:.4f}")
+    print(f"Validation F1: {val_f1:.4f}")
     print(f"Test accuracy: {test_metrics['accuracy']:.4f}")
     print(f"Test F1-score: {test_f1:.4f}")
     print(f"Model saved to {args.model_save_path}")

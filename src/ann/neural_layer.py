@@ -5,13 +5,13 @@ class Dense:
     def __init__(self, input_size, output_size, weight_init="random"):
         if weight_init == "xavier":
             limit = np.sqrt(6.0 / (input_size + output_size))
-            self.W = np.random.uniform(-limit, limit, (input_size, output_size))
+            self.W = np.random.uniform(-limit, limit, (input_size, output_size)).astype(np.float32)
         elif weight_init == "zeros":
-            self.W = np.zeros((input_size, output_size))
+            self.W = np.zeros((input_size, output_size), dtype=np.float32)
         else:
-            self.W = np.random.randn(input_size, output_size) * 0.01
+            self.W = (np.random.randn(input_size, output_size) * 0.01).astype(np.float32)
 
-        self.b = np.zeros((1, output_size))
+        self.b = np.zeros((1, output_size), dtype=np.float32)
         self.input = None
         self.grad_W = np.zeros_like(self.W)
         self.grad_b = np.zeros_like(self.b)

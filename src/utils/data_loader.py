@@ -18,8 +18,8 @@ def load_dataset(dataset_name):
 def preprocess_split(dataset_name, validation_split=0.1, random_state=42):
     (X_train, y_train), (X_test, y_test) = load_dataset(dataset_name)
 
-    X_train = X_train.astype(np.float64) / 255.0
-    X_test = X_test.astype(np.float64) / 255.0
+    X_train = X_train.astype(np.float32) / 255.0
+    X_test = X_test.astype(np.float32) / 255.0
 
     X_train = X_train.reshape(X_train.shape[0], -1)
     X_test = X_test.reshape(X_test.shape[0], -1)
