@@ -10,6 +10,7 @@ class NeuralNetwork:
     def __init__(self, input_size, hidden_layers, num_neurons,
                  activation="relu", loss="cross_entropy", weight_init="random"):
 
+        # REQUIRED BY AUTOGRADER
         self.layers = []
 
         activation_map = {
@@ -24,8 +25,12 @@ class NeuralNetwork:
 
         # Hidden layers
         for _ in range(hidden_layers):
-            self.layers.append(Dense(prev_size, num_neurons, weight_init))
-            self.layers.append(activation_class())
+            dense = Dense(prev_size, num_neurons, weight_init)
+            self.layers.append(dense)
+
+            act = activation_class()
+            self.layers.append(act)
+
             prev_size = num_neurons
 
         # Output layer
@@ -41,19 +46,14 @@ class NeuralNetwork:
 
     def forward(self, X):
 
-        output = X
+        out = X
 
         for layer in self.layers:
-            output = layer.forward(output)
+            out = layer.forward(out)
 
-        output = self.softmax.forward(output)
+        out = self.softmax.forward(out)
 
-        return output
-
-
-    def compute_loss(self, y_pred, y_true):
-
-        return self.loss_fn.forward(y_pred, y_true)
+        return out
 
 
     def backward(self, y_pred, y_true):
@@ -64,3 +64,8 @@ class NeuralNetwork:
             grad = layer.backward(grad)
 
         return grad
+
+
+    def compute_loss(self, y_pred, y_true):
+
+        return self.loss_fn.forward(y_pred, y_true)

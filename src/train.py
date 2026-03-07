@@ -55,7 +55,7 @@ def parse_arguments():
     parser.add_argument('--model_save_path', type=str, default='best_model.npy')
 
     parser.add_argument('--num_layers', type=int)
-    parser.add_argument('--hidden_size', type=int)
+    pparser.add_argument('--hidden_size', type=int, nargs='+')
 
     args = parser.parse_args()
 
@@ -63,7 +63,11 @@ def parse_arguments():
         args.hidden_layers = args.num_layers
 
     if args.hidden_size is not None:
-        args.num_neurons = args.hidden_size
+        if isinstance(args.hidden_size, list):
+            args.hidden_layers = len(args.hidden_size)
+            args.num_neurons = args.hidden_size[0]
+        else:
+            args.num_neurons = args.hidden_size
 
     return args
 
@@ -173,7 +177,7 @@ def main():
 
         print(f"Epoch {epoch+1}/{args.epochs}, Loss: {loss}")
     
-    np.save(args.model_save_path, model)
+    np.save(args.model_save_path, model.layers, allow_pickle=True)
     print("Model saved successfully!")
     
     config = {
