@@ -7,10 +7,9 @@ from models.losses import Softmax, CrossEntropyLoss, MSELoss
 
 class NeuralNetwork:
 
-    def __init__(self, input_size, hidden_layers, num_neurons,
+    def __init__(self, input_size, hidden_layers, num_neurons=None,
                  activation="relu", loss="cross_entropy", weight_init="random"):
 
-        # REQUIRED BY AUTOGRADER
         self.layers = []
 
         activation_map = {
@@ -23,15 +22,16 @@ class NeuralNetwork:
 
         prev_size = input_size
 
-        # Hidden layers
-        for _ in range(hidden_layers):
-            dense = Dense(prev_size, num_neurons, weight_init)
-            self.layers.append(dense)
+        # IMPORTANT: handle both formats
+        if isinstance(hidden_layers, list):
+            layer_sizes = hidden_layers
+        else:
+            layer_sizes = [num_neurons] * hidden_layers
 
-            act = activation_class()
-            self.layers.append(act)
-
-            prev_size = num_neurons
+        for size in layer_sizes:
+            self.layers.append(Dense(prev_size, size, weight_init))
+            self.layers.append(activation_class())
+            prev_size = size
 
         # Output layer
         self.layers.append(Dense(prev_size, 10, weight_init))
@@ -56,6 +56,11 @@ class NeuralNetwork:
         return out
 
 
+    def compute_loss(self, y_pred, y_true):
+
+        return self.loss_fn.forward(y_pred, y_true)
+
+
     def backward(self, y_pred, y_true):
 
         grad = self.loss_fn.backward(y_pred, y_true)
@@ -64,8 +69,3 @@ class NeuralNetwork:
             grad = layer.backward(grad)
 
         return grad
-
-
-    def compute_loss(self, y_pred, y_true):
-
-        return self.loss_fn.forward(y_pred, y_true)
