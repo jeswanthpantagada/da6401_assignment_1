@@ -11,7 +11,7 @@ import argparse
 import numpy as np
 from keras.datasets import mnist, fashion_mnist
 from sklearn.model_selection import train_test_split
-from models.mlp import MLP
+from models.mlp import NeuralNetwork
 from optimizers.sgd import SGD
 from optimizers.momentum import Momentum
 from optimizers.nag import NAG
@@ -139,9 +139,10 @@ def main():
         X_train, y_train, X_test, y_test
     )
 
-    model = MLP(
+    model = NeuralNetwork(
     input_size=784,
-    hidden_layers=[args.num_neurons]*args.hidden_layers,
+    hidden_layers=args.hidden_layers,
+    num_neurons=args.num_neurons,
     activation=args.activation,
     loss=args.loss,
     weight_init=args.weight_init

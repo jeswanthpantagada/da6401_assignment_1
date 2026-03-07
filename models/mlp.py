@@ -5,10 +5,10 @@ from models.activations import ReLU, Sigmoid, Tanh
 from models.losses import Softmax, CrossEntropyLoss, MSELoss
 
 
-class MLP:
+class NeuralNetwork:
 
-    def __init__(self, input_size, hidden_layers, activation="relu",
-                 loss="cross_entropy", weight_init="random"):
+    def __init__(self, input_size, hidden_layers, num_neurons,
+                 activation="relu", loss="cross_entropy", weight_init="random"):
 
         self.layers = []
 
@@ -22,13 +22,13 @@ class MLP:
 
         prev_size = input_size
 
-        for size in hidden_layers:
-
-            self.layers.append(Dense(prev_size, size, weight_init))
+        # Hidden layers
+        for _ in range(hidden_layers):
+            self.layers.append(Dense(prev_size, num_neurons, weight_init))
             self.layers.append(activation_class())
+            prev_size = num_neurons
 
-            prev_size = size
-
+        # Output layer
         self.layers.append(Dense(prev_size, 10, weight_init))
 
         self.softmax = Softmax()
@@ -62,3 +62,5 @@ class MLP:
 
         for layer in reversed(self.layers):
             grad = layer.backward(grad)
+
+        return grad
