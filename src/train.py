@@ -54,7 +54,18 @@ def parse_arguments():
 
     parser.add_argument('--model_save_path', type=str, default='best_model.npy')
 
-    return parser.parse_args()
+    parser.add_argument('--num_layers', type=int)
+    parser.add_argument('--hidden_size', type=int)
+
+    args = parser.parse_args()
+
+    if args.num_layers is not None:
+        args.hidden_layers = args.num_layers
+
+    if args.hidden_size is not None:
+        args.num_neurons = args.hidden_size
+
+    return args
 
 def load_dataset(dataset_name):
 
