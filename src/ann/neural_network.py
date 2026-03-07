@@ -56,21 +56,27 @@ class NeuralNetwork:
                 raise TypeError("cli_args must be an argparse.Namespace or dict")
         data.update(kwargs)
 
-        input_size = data.get("input_size", 784)
-        output_size = data.get("output_size", 10)
-        activation = data.get("activation", "relu")
-        loss = data.get("loss", "cross_entropy")
-        weight_init = data.get("weight_init", "random")
-        learning_rate = data.get("learning_rate", 0.001)
-        optimizer = data.get("optimizer", "sgd")
-        weight_decay = data.get("weight_decay", 0.0)
+        def _coalesce(*values):
+            for value in values:
+                if value is not None:
+                    return value
+            return None
 
-        hidden_sizes = data.get("hidden_size")
-        if hidden_sizes is None:
-            hidden_sizes = data.get("hidden_sizes")
+        input_size = _coalesce(data.get("input_size"), 784)
+        output_size = _coalesce(data.get("output_size"), 10)
+        activation = _coalesce(data.get("activation"), "relu")
+        loss = _coalesce(data.get("loss"), "cross_entropy")
+        weight_init = _coalesce(data.get("weight_init"), "random")
+        learning_rate = _coalesce(data.get("learning_rate"), 0.001)
+        optimizer = _coalesce(data.get("optimizer"), "sgd")
+        weight_decay = _coalesce(data.get("weight_decay"), 0.0)
+
+        hidden_sizes = _coalesce(data.get("hidden_size"), data.get("hidden_sizes"))
         num_neurons = data.get("num_neurons")
+        requested_num_layers = _coalesce(data.get("num_layers"), data.get("hidden_layers"))
+
         if hidden_sizes is None and num_neurons is not None:
-            num_layers = data.get("num_layers", data.get("hidden_layers", 1))
+            num_layers = _coalesce(requested_num_layers, 1)
             if isinstance(num_neurons, (list, tuple, np.ndarray)):
                 hidden_sizes = [int(size) for size in num_neurons]
             else:
@@ -84,12 +90,12 @@ class NeuralNetwork:
             hidden_sizes = [128]
 
         if isinstance(hidden_sizes, int):
-            num_layers = int(data.get("num_layers", data.get("hidden_layers", 1)))
+            num_layers = int(_coalesce(requested_num_layers, 1))
             hidden_sizes = [int(hidden_sizes)] * num_layers
         else:
             hidden_sizes = [int(size) for size in hidden_sizes]
 
-        num_layers = int(data.get("num_layers", data.get("hidden_layers", len(hidden_sizes))))
+        num_layers = int(_coalesce(requested_num_layers, len(hidden_sizes)))
         if len(hidden_sizes) == 1 and num_layers > 1:
             hidden_sizes = hidden_sizes * num_layers
         elif len(hidden_sizes) != num_layers:
