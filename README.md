@@ -19,4 +19,6 @@ For questions or issues, please contact the teaching staff or post on the course
 
 ---
 
+https://wandb.ai/ee23b052-iitm-india/da6401_assignment_1-src/reportlist
+
 Good luck with your implementation!
