@@ -1,0 +1,22 @@
+{
+    "dataset": "mnist",
+    "epochs": 8,
+    "batch_size": 64,
+    "learning_rate": 0.001,
+    "optimizer": "adam",
+    "weight_decay": 0.0,
+    "num_layers": 1,
+    "hidden_layers": 1,
+    "hidden_size": [
+        128
+    ],
+    "num_neurons": 128,
+    "activation": "relu",
+    "loss": "cross_entropy",
+    "weight_init": "xavier",
+    "input_size": 784,
+    "output_size": 10,
+    "val_f1": 0.9739151193612539,
+    "test_accuracy": 0.9752,
+    "test_f1": 0.9750442864746012
+}

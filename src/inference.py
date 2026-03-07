@@ -16,17 +16,20 @@ except ImportError:
     from ann.neural_network import NeuralNetwork
     from utils.data_loader import load_dataset
 
+DEFAULT_MODEL_PATH = os.path.join("src", "best_model.npy")
+DEFAULT_CONFIG_PATH = os.path.join("src", "best_config.json")
+
 
 def parse_arguments(argv=None):
     parser = argparse.ArgumentParser(description="Run inference on test set")
-    parser.add_argument("--model_path", type=str, default="best_model.npy")
+    parser.add_argument("--model_path", type=str, default=DEFAULT_MODEL_PATH)
     parser.add_argument("--dataset", type=str, choices=["mnist", "fashion_mnist"], default=None)
     parser.add_argument("--batch_size", type=int, default=256)
     parser.add_argument("--hidden_layers", type=int, default=None)
     parser.add_argument("--num_neurons", type=int, default=None)
     parser.add_argument("--hidden_size", type=int, nargs="+", default=None)
     parser.add_argument("--activation", type=str, choices=["relu", "sigmoid", "tanh"], default=None)
-    parser.add_argument("--config_path", type=str, default="best_config.json")
+    parser.add_argument("--config_path", type=str, default=DEFAULT_CONFIG_PATH)
     if argv is None:
         args, _ = parser.parse_known_args()
         return args
@@ -34,6 +37,15 @@ def parse_arguments(argv=None):
 
 
 def load_serialized_weights(model_path):
+    if not os.path.exists(model_path):
+        fallback_candidates = []
+        if os.path.basename(model_path) == "best_model.npy":
+            fallback_candidates = ["best_model.npy", os.path.join("src", "best_model.npy")]
+        for candidate in fallback_candidates:
+            if os.path.exists(candidate):
+                model_path = candidate
+                break
+
     payload = np.load(model_path, allow_pickle=True)
 
     if isinstance(payload, np.ndarray) and payload.shape == ():
@@ -62,8 +74,14 @@ def load_serialized_weights(model_path):
 
 def load_config(args):
     config = {}
-    if args.config_path and os.path.exists(args.config_path):
-        with open(args.config_path, "r", encoding="utf-8") as file:
+    config_path = args.config_path
+    if config_path and not os.path.exists(config_path) and os.path.basename(config_path) == "best_config.json":
+        for candidate in ["best_config.json", os.path.join("src", "best_config.json")]:
+            if os.path.exists(candidate):
+                config_path = candidate
+                break
+    if config_path and os.path.exists(config_path):
+        with open(config_path, "r", encoding="utf-8") as file:
             config = json.load(file)
     if args.dataset is not None:
         config["dataset"] = args.dataset

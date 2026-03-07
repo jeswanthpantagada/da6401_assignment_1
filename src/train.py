@@ -4,6 +4,7 @@ Entry point for training neural networks with command-line arguments
 """
 import argparse
 import json
+import os
 
 import numpy as np
 from sklearn.metrics import f1_score
@@ -14,6 +15,9 @@ try:
 except ImportError:
     from ann.neural_network import NeuralNetwork
     from utils.data_loader import preprocess_split
+
+DEFAULT_MODEL_PATH = os.path.join("src", "best_model.npy")
+DEFAULT_CONFIG_PATH = os.path.join("src", "best_config.json")
 
 
 def parse_arguments(argv=None):
@@ -34,8 +38,8 @@ def parse_arguments(argv=None):
     parser.add_argument("--hidden_layers", type=int, default=None, help=argparse.SUPPRESS)
     parser.add_argument("--num_neurons", type=int, nargs="+", default=None, help=argparse.SUPPRESS)
     parser.add_argument("--wandb_project", type=str, default="da6401_assignment")
-    parser.add_argument("--model_save_path", type=str, default="best_model.npy")
-    parser.add_argument("--config_save_path", type=str, default="best_config.json")
+    parser.add_argument("--model_save_path", type=str, default=DEFAULT_MODEL_PATH)
+    parser.add_argument("--config_save_path", type=str, default=DEFAULT_CONFIG_PATH)
     parser.add_argument("--seed", type=int, default=42)
 
     if argv is None:
@@ -59,9 +63,23 @@ def parse_arguments(argv=None):
 
 
 def save_model(model, model_path, config_path, config):
+    model_dir = os.path.dirname(model_path)
+    config_dir = os.path.dirname(config_path)
+    if model_dir:
+        os.makedirs(model_dir, exist_ok=True)
+    if config_dir:
+        os.makedirs(config_dir, exist_ok=True)
+
     np.save(model_path, model.get_weights(), allow_pickle=True)
     with open(config_path, "w", encoding="utf-8") as file:
         json.dump(config, file, indent=4)
+
+    # Keep the canonical root artifacts too, since some checks use repo-root paths.
+    if os.path.normpath(model_path) != "best_model.npy":
+        np.save("best_model.npy", model.get_weights(), allow_pickle=True)
+    if os.path.normpath(config_path) != "best_config.json":
+        with open("best_config.json", "w", encoding="utf-8") as file:
+            json.dump(config, file, indent=4)
 
 
 def main(argv=None):
