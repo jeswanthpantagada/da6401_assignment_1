@@ -1,12 +1,23 @@
 {
     "dataset": "mnist",
-    "epochs": 10,
+    "epochs": 3,
     "batch_size": 32,
-    "learning_rate": 0.0001,
-    "optimizer": "nadam",
-    "hidden_layers": 1,
-    "num_neurons": 128,
+    "learning_rate": 0.01,
+    "optimizer": "sgd",
+    "weight_decay": 0.0,
+    "num_layers": 2,
+    "hidden_layers": 2,
+    "hidden_size": [
+        3,
+        2
+    ],
+    "num_neurons": 3,
     "activation": "relu",
     "loss": "cross_entropy",
-    "weight_init": "xavier"
+    "weight_init": "xavier",
+    "input_size": 784,
+    "output_size": 10,
+    "val_f1": 0.48775776499720064,
+    "test_accuracy": 0.5405,
+    "test_f1": 0.48938227425576997
 }

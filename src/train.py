@@ -2,208 +2,144 @@
 Main Training Script
 Entry point for training neural networks with command-line arguments
 """
-import sys
-import os
-
-sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), "..")))
-
 import argparse
-import numpy as np
-from keras.datasets import mnist, fashion_mnist
-from sklearn.model_selection import train_test_split
-from models.mlp import NeuralNetwork
-from optimizers.sgd import SGD
-from optimizers.momentum import Momentum
-from optimizers.nag import NAG
-from optimizers.rmsprop import RMSProp
-from optimizers.adam import Adam
-from optimizers.nadam import Nadam
 import json
 
-def parse_arguments():
+import numpy as np
+from sklearn.metrics import f1_score
 
-    parser = argparse.ArgumentParser(description='Train a neural network')
+try:
+    from .ann.neural_network import NeuralNetwork
+    from .utils.data_loader import preprocess_split
+except ImportError:
+    from ann.neural_network import NeuralNetwork
+    from utils.data_loader import preprocess_split
 
-    parser.add_argument('--dataset', type=str, choices=['mnist','fashion_mnist'], required=True)
 
-    parser.add_argument('--epochs', type=int, default=10)
+def parse_arguments(argv=None):
+    parser = argparse.ArgumentParser(description="Train a neural network")
 
-    parser.add_argument('--batch_size', type=int, default=64)
+    parser.add_argument("-d", "--dataset", type=str, choices=["mnist", "fashion_mnist"], required=True)
+    parser.add_argument("-e", "--epochs", type=int, default=10)
+    parser.add_argument("-b", "--batch_size", type=int, default=64)
+    parser.add_argument("-l", "--loss", type=str, choices=["cross_entropy", "mse"], default="cross_entropy")
+    parser.add_argument("-o", "--optimizer", type=str, choices=["sgd", "momentum", "nag", "rmsprop", "adam", "nadam"], default="sgd")
+    parser.add_argument("-lr", "--learning_rate", type=float, default=0.001)
+    parser.add_argument("-wd", "--weight_decay", type=float, default=0.0)
+    parser.add_argument("-nhl", "--num_layers", type=int, default=1)
+    parser.add_argument("-sz", "--hidden_size", type=int, nargs="+", default=[128])
+    parser.add_argument("-a", "--activation", type=str, choices=["relu", "sigmoid", "tanh"], default="relu")
+    parser.add_argument("-w_i", "--weight_init", type=str, choices=["random", "xavier"], default="random")
 
-    parser.add_argument('--learning_rate', type=float, default=0.001)
+    parser.add_argument("--hidden_layers", type=int, default=None, help=argparse.SUPPRESS)
+    parser.add_argument("--num_neurons", type=int, nargs="+", default=None, help=argparse.SUPPRESS)
+    parser.add_argument("--wandb_project", type=str, default="da6401_assignment")
+    parser.add_argument("--model_save_path", type=str, default="best_model.npy")
+    parser.add_argument("--config_save_path", type=str, default="best_config.json")
+    parser.add_argument("--seed", type=int, default=42)
 
-    parser.add_argument('--optimizer', type=str,
-                        choices=['sgd','momentum','nag','rmsprop','adam','nadam'],
-                        default='sgd')
+    if argv is None:
+        args, _ = parser.parse_known_args()
+    else:
+        args = parser.parse_args(argv)
 
-    parser.add_argument('--hidden_layers', type=int, default=1)
+    if args.hidden_layers is not None:
+        args.num_layers = args.hidden_layers
+    if args.num_neurons is not None:
+        args.hidden_size = args.num_neurons
 
-    parser.add_argument('--num_neurons', type=int, default=128)
+    if len(args.hidden_size) == 1 and args.num_layers > 1:
+        args.hidden_size = args.hidden_size * args.num_layers
+    elif len(args.hidden_size) != args.num_layers:
+        raise ValueError("Length of --hidden_size must match --num_layers")
 
-    parser.add_argument('--activation', type=str,
-                        choices=['relu','sigmoid','tanh'],
-                        default='relu')
-
-    parser.add_argument('--loss', type=str,
-                        choices=['cross_entropy','mse'],
-                        default='cross_entropy')
-
-    parser.add_argument('--weight_init', type=str, default='random')
-
-    parser.add_argument('--wandb_project', type=str, default='da6401_assignment')
-
-    parser.add_argument('--model_save_path', type=str, default='best_model.npy')
-
-    parser.add_argument('--num_layers', type=int)
-    pparser.add_argument('--hidden_size', type=int, nargs='+')
-
-    args = parser.parse_args()
-
-    if args.num_layers is not None:
-        args.hidden_layers = args.num_layers
-
-    if args.hidden_size is not None:
-        if isinstance(args.hidden_size, list):
-            args.hidden_layers = len(args.hidden_size)
-            args.num_neurons = args.hidden_size[0]
-        else:
-            args.num_neurons = args.hidden_size
-
+    args.hidden_layers = args.num_layers
+    args.num_neurons = args.hidden_size[0]
     return args
 
-def load_dataset(dataset_name):
 
-    if dataset_name == "mnist":
-        (X_train, y_train), (X_test, y_test) = mnist.load_data()
-
-    elif dataset_name == "fashion_mnist":
-        (X_train, y_train), (X_test, y_test) = fashion_mnist.load_data()
-
-    else:
-        raise ValueError("Invalid dataset")
-
-    return X_train, y_train, X_test, y_test
+def save_model(model, model_path, config_path, config):
+    np.save(model_path, model.get_weights(), allow_pickle=True)
+    with open(config_path, "w", encoding="utf-8") as file:
+        json.dump(config, file, indent=4)
 
 
-def preprocess_data(X_train, y_train, X_test, y_test):
+def main(argv=None):
+    args = parse_arguments(argv)
+    np.random.seed(args.seed)
 
-    X_train = X_train / 255.0
-    X_test = X_test / 255.0
+    X_train, y_train, X_val, y_val, X_test, y_test = preprocess_split(args.dataset)
+    model = NeuralNetwork(args)
 
-    X_train = X_train.reshape(X_train.shape[0], -1)
-    X_test = X_test.reshape(X_test.shape[0], -1)
-
-    num_classes = 10
-
-    y_train_onehot = np.zeros((y_train.shape[0], num_classes))
-    y_train_onehot[np.arange(y_train.shape[0]), y_train] = 1
-
-    y_test_onehot = np.zeros((y_test.shape[0], num_classes))
-    y_test_onehot[np.arange(y_test.shape[0]), y_test] = 1
-
-    X_train, X_val, y_train_onehot, y_val = train_test_split(
-        X_train,
-        y_train_onehot,
-        test_size=0.1,
-        random_state=42
-    )
-
-    return X_train, y_train_onehot, X_val, y_val, X_test, y_test_onehot
-
-def get_optimizer(name, learning_rate):
-
-    if name == "sgd":
-        return SGD(learning_rate)
-
-    elif name == "momentum":
-        return Momentum(learning_rate)
-
-    elif name == "nag":
-        return NAG(learning_rate)
-
-    elif name == "rmsprop":
-        return RMSProp(learning_rate)
-
-    elif name == "adam":
-        return Adam(learning_rate)
-
-    elif name == "nadam":
-        return Nadam(learning_rate)
-
-    else:
-        raise ValueError("Invalid optimizer")
-
-def main():
-
-    args = parse_arguments()
-
-    X_train, y_train, X_test, y_test = load_dataset(args.dataset)
-
-    X_train, y_train, X_val, y_val, X_test, y_test = preprocess_data(
-        X_train, y_train, X_test, y_test
-    )
-
-    model = NeuralNetwork(
-    input_size=784,
-    hidden_layers=args.hidden_layers,
-    num_neurons=args.num_neurons,
-    activation=args.activation,
-    loss=args.loss,
-    weight_init=args.weight_init
-)
-    optimizer = get_optimizer(args.optimizer, args.learning_rate)
+    best_state = model.get_weights()
+    best_val_f1 = -np.inf
 
     for epoch in range(args.epochs):
+        permutation = np.random.permutation(X_train.shape[0])
+        X_train_epoch = X_train[permutation]
+        y_train_epoch = y_train[permutation]
 
-        indices = np.random.permutation(X_train.shape[0])
-        X_train = X_train[indices]
-        y_train = y_train[indices]
+        batch_losses = []
+        for start in range(0, X_train_epoch.shape[0], args.batch_size):
+            end = start + args.batch_size
+            X_batch = X_train_epoch[start:end]
+            y_batch = y_train_epoch[start:end]
 
-        for i in range(0, X_train.shape[0], args.batch_size):
+            logits = model.forward(X_batch)
+            loss = model.compute_loss(logits, y_batch)
+            model.backward(y_batch, logits)
+            model.update_weights()
+            batch_losses.append(loss)
 
-            X_batch = X_train[i:i+args.batch_size]
-            y_batch = y_train[i:i+args.batch_size]
+        train_metrics = model.evaluate(X_train, y_train)
+        val_metrics = model.evaluate(X_val, y_val)
+        val_f1 = f1_score(y_val, val_metrics["predictions"], average="macro")
 
-            y_pred = model.forward(X_batch)
+        if val_f1 > best_val_f1:
+            best_val_f1 = val_f1
+            best_state = model.get_weights()
 
-            loss = model.compute_loss(y_pred, y_batch)
+        print(
+            f"Epoch {epoch + 1}/{args.epochs} "
+            f"loss={np.mean(batch_losses):.6f} "
+            f"train_acc={train_metrics['accuracy']:.4f} "
+            f"val_acc={val_metrics['accuracy']:.4f} "
+            f"val_f1={val_f1:.4f}"
+        )
 
-            model.backward(y_pred, y_batch)
+    model.set_weights(best_state)
+    test_metrics = model.evaluate(X_test, y_test)
+    test_f1 = f1_score(y_test, test_metrics["predictions"], average="macro")
 
-            for layer in model.layers:
-
-                if hasattr(layer, "W"):
-                    optimizer.update(layer)
-
-        print(f"Epoch {epoch+1}/{args.epochs}, Loss: {loss}")
-    
-    np.save(args.model_save_path, model.layers, allow_pickle=True)
-    print("Model saved successfully!")
-    
     config = {
         "dataset": args.dataset,
         "epochs": args.epochs,
         "batch_size": args.batch_size,
         "learning_rate": args.learning_rate,
         "optimizer": args.optimizer,
-        "hidden_layers": args.hidden_layers,
-        "num_neurons": args.num_neurons,
+        "weight_decay": args.weight_decay,
+        "num_layers": args.num_layers,
+        "hidden_layers": args.num_layers,
+        "hidden_size": args.hidden_size,
+        "num_neurons": args.hidden_size[0],
         "activation": args.activation,
         "loss": args.loss,
-        "weight_init": args.weight_init
+        "weight_init": args.weight_init,
+        "input_size": 784,
+        "output_size": 10,
+        "val_f1": best_val_f1,
+        "test_accuracy": test_metrics["accuracy"],
+        "test_f1": test_f1,
     }
 
-    with open("best_config.json", "w") as f:
-        json.dump(config, f, indent=4)
-
-    print("Configuration saved successfully!")
-
-    print("Training data:", X_train.shape)
-    print("Validation data:", X_val.shape)
-    print("Test data:", X_test.shape)
-
-    print("Training complete!")
+    save_model(model, args.model_save_path, args.config_save_path, config)
+    print(f"Best validation F1: {best_val_f1:.4f}")
+    print(f"Test accuracy: {test_metrics['accuracy']:.4f}")
+    print(f"Test F1-score: {test_f1:.4f}")
+    print(f"Model saved to {args.model_save_path}")
+    print(f"Config saved to {args.config_save_path}")
+    return config
 
 
-if __name__ == '__main__':
+if __name__ == "__main__":
     main()
