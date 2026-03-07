@@ -172,7 +172,7 @@ def main():
 
         print(f"Epoch {epoch+1}/{args.epochs}, Loss: {loss}")
     
-    np.save(args.model_save_path, model.layers)
+    np.save(args.model_save_path, model)
     print("Model saved successfully!")
     
     config = {
