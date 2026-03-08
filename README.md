@@ -18,5 +18,8 @@ This assignment requires you to implement a neural network from scratch using on
 For questions or issues, please contact the teaching staff or post on the course forum.
 
 ---
+wandb - [https://wandb.ai/ee23b052-iitm-india/da6401_assignment/reportlist]
+
+
 
 Good luck with your implementation!
